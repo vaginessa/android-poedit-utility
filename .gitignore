@@ -1,5 +1,9 @@
 *.class
 
+# Intelij IDEA files
+.idea/
+android-poedit-utility.iml
+
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
