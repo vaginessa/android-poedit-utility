@@ -55,10 +55,6 @@ public final class POTFilesCreator {
     private static void writePOTFormatItem(BufferedWriter bw, Matcher stringResourceMatcher) throws Exception {
         String key = stringResourceMatcher.group(1);
         String value = stringResourceMatcher.group(2);
-        System.out.println();
-        System.out.println("key: " + key);
-        System.out.println("value: " + value);
-        System.out.println();
 
         bw.write(NEW_LINE +
                 POT_COMMENT_LINE_START + key + NEW_LINE +
