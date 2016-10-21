@@ -17,7 +17,7 @@ public final class POTFilesCreator {
     private static final String POT_MESSAGE_ID_LINE_START = "msgid ";
     private static final String POT_MESSAGE_STRING_LINE_START = "msgstr ";
     private static final String UTILITY_COMMENT_KEY = "_comment_";
-    private static final String UTILITY_EMPTY_LINE_KEY = "[]";
+    private static final String UTILITY_EMPTY_LINE_KEY = "_empty_";
 
     private static final Pattern RESOURCES_TAG_PATTERN = Pattern.compile("^<resources>$");
     private static final Pattern RESOURCES_END_TAG_PATTERN = Pattern.compile("^</resources>$");
@@ -65,7 +65,7 @@ public final class POTFilesCreator {
 
     private static void writeCommentString(BufferedWriter bw, String comment) throws Exception {
         bw.write(NEW_LINE +
-                POT_COMMENT_LINE_START + UTILITY_COMMENT_KEY + (comment.isEmpty() ? UTILITY_EMPTY_LINE_KEY : comment)
+                POT_COMMENT_LINE_START + (comment.isEmpty() ? UTILITY_EMPTY_LINE_KEY : UTILITY_COMMENT_KEY + comment)
         );
     }
 

@@ -20,7 +20,7 @@ public final class XMLFilesCreator {
     private static final String CLOSE_RESOURCES_TAG = "</resources>";
     private static final String OPEN_XML_COMMENT_TAG = "<!--";
     private static final String CLOSE_XML_COMMENT_TAG = "-->";
-    private static final String UTILITY_EMPTY_LINE_COMMENT = "_comment_[]";
+    private static final String UTILITY_EMPTY_LINE_COMMENT = "_empty_";
 
     private static final Pattern PO_KEY_PATTERN = Pattern.compile("#: \"(.+)\"");
     private static final Pattern PO_VALUE_PATTERN = Pattern.compile("msgstr \"(.*)\"");
@@ -53,10 +53,7 @@ public final class XMLFilesCreator {
                     if (line.contains(UTILITY_EMPTY_LINE_COMMENT)) {
                         bw.newLine();
                     }
-                    String comment = poCommentKeyLineMatcher.group(2);
-                    if (!comment.equals("[] ")) {
-                        writeCommentString(bw, poCommentKeyLineMatcher.group(2));
-                    }
+                    writeCommentString(bw, poCommentKeyLineMatcher.group(2));
                 }
 
                 StringBuilder valueBuilder = new StringBuilder("");
