@@ -1,107 +1,175 @@
 package com.app.ztrel.android.poedit_utility.creators;
 
+import com.sun.istack.internal.NotNull;
+
 import java.io.*;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import static com.app.ztrel.android.poedit_utility.Constants.*;
 
 /**
  * Utility class for creating string resources XML-files from PO-files, provided by POEditor.
  */
 public final class XMLFilesCreator {
 
-    private static final String NEW_LINE = "\n";
-    private static final String TAB = "\t";
-    private static final String CLOSE_TAG = ">";
-    private static final String QUOTE = "\"";
-    private static final String OPEN_STRING_TAG = "<string ";
-    private static final String STRING_TAG_KEY_ATTRIBUTE = "key=";
-    private static final String CLOSE_STRING_TAG = "</string>";
-    private static final String OPEN_RESOURCES_TAG = "<resources>";
-    private static final String CLOSE_RESOURCES_TAG = "</resources>";
-    private static final String OPEN_XML_COMMENT_TAG = "<!--";
-    private static final String CLOSE_XML_COMMENT_TAG = "-->";
-    private static final String UTILITY_EMPTY_LINE_COMMENT = "_empty_";
-
-    private static final Pattern PO_KEY_PATTERN = Pattern.compile("#: \"(.+)\"");
-    private static final Pattern PO_VALUE_PATTERN = Pattern.compile("msgstr \"(.*)\"");
-    private static final Pattern START_PO_VALUE_PATTERN = Pattern.compile("\"(.+)\"");
-    private static final Pattern PO_EMPTY_LINE_PATTERN = Pattern.compile("");
-    private static final Pattern UTILITY_COMMENT_KEY_PATTERN = Pattern.compile(".*([ ]_comment_(.+))\"(.+)\"");
-
     private XMLFilesCreator() {
         // utility class.
     }
 
-    public static void createXMLFromPOFile(final File poFile) throws Exception {
-        File stringsXMLFile = new File("strings.xml");
-        try (BufferedReader br = new BufferedReader(new FileReader(poFile));
-             BufferedWriter bw = new BufferedWriter(new FileWriter(stringsXMLFile))) {
+    public static void createXMLFiles(@NotNull final File startFile) throws Exception {
+        handleFile(startFile);
+    }
 
-            writeStartOfStringsXMLFile(bw);
+    private static void handleFile(@NotNull final File startFile) throws Exception {
+        if (startFile.isDirectory()) {
+            File[] directoryFiles = startFile.listFiles();
+            if (directoryFiles != null && directoryFiles.length != 0) {
+                for (File directoryFile : directoryFiles) {
+                    handleFile(directoryFile);
+                }
+            }
+        } else {
+            if (startFile.getName().endsWith(".po")) {
+                handlePOFile(startFile);
+            }
+        }
+    }
 
+    private static void handlePOFile(File poFile) throws Exception {
+        BufferedWriter bw = null;
+        try (BufferedReader br = new BufferedReader(new FileReader(poFile))) {
             String line;
+            StringBuilder commentBuilder = new StringBuilder("");
             while ((line = br.readLine()) != null) {
-                Matcher poKeyLineMatcher = PO_KEY_PATTERN.matcher(line);
-                Matcher poCommentKeyLineMatcher = UTILITY_COMMENT_KEY_PATTERN.matcher(line);
-
-                String key = poCommentKeyLineMatcher.matches() ? QUOTE + poCommentKeyLineMatcher.group(3) + QUOTE :
-                        poKeyLineMatcher.matches() ? QUOTE + poKeyLineMatcher.group(1) + QUOTE : null;
-                if (key == null) {
-                    continue;
-                }
-                if (poCommentKeyLineMatcher.matches()) {
-                    if (line.contains(UTILITY_EMPTY_LINE_COMMENT)) {
-                        bw.newLine();
+                Matcher commentMatcher = PO_COMMENT_PATTERN.matcher(line);
+                if (commentMatcher.matches()) {
+                    commentBuilder.append(" ").append(commentMatcher.group(1));
+                } else {
+                    Matcher messageIdMatcher = PO_MSGID_PATTERN.matcher(line);
+                    if (!messageIdMatcher.matches()) {
+                        continue;
                     }
-                    writeCommentString(bw, poCommentKeyLineMatcher.group(2));
-                }
-
-                StringBuilder valueBuilder = new StringBuilder("");
-                while (true) {
-                    line = br.readLine();
-                    Matcher valueMatcher = PO_VALUE_PATTERN.matcher(line);
-                    if (valueMatcher.matches()) {
-                        valueBuilder.append(valueMatcher.group(1));
-                        while (true) {
-                            line = br.readLine();
-                            if (line == null) {
-                                break;
-                            }
-                            Matcher startValueMatcher = START_PO_VALUE_PATTERN.matcher(line);
-                            if (startValueMatcher.matches()) {
-                                valueBuilder.append(startValueMatcher.group(1));
-                                continue;
-                            }
-                            Matcher emptyMatcher = PO_EMPTY_LINE_PATTERN.matcher(line);
-                            if (emptyMatcher.matches()) {
-                                break;
-                            }
+                    if (commentBuilder.toString().isEmpty()) {
+                        continue;
+                    }
+                    String[] valuesCommentArray = getCommentValuesArray(commentBuilder.toString());
+                    if (valuesCommentArray[0] == null) {
+                        if (bw == null) {
+                            throw new IllegalStateException();
+                        }
+                        if ("true".equals(valuesCommentArray[3])) {
+                            bw.newLine();
+                        }
+                        if (valuesCommentArray[1] != null) {
+                            writeCommentString(bw, valuesCommentArray[1]);
                         }
 
-                        writeStringTagString(bw, key, valueBuilder.toString());
+                        String key = valuesCommentArray[2];
+                        String value = readValue(br);
+
+                        writeStringTagString(bw, key, value);
+                    } else {
+                        if (bw != null) {
+                            writeEndOfStringsXMLFile(bw);
+                            bw.close();
+                            bw = null;
+                        }
+                        bw = getBufferedWriter(valuesCommentArray[0], getValuesDirNamePostfix(poFile.getName()));
+                        writeStartOfXMLFile(bw);
+                    }
+
+
+                    commentBuilder.setLength(0);
+                }
+            }
+        } finally {
+            if (bw != null) {
+                writeEndOfStringsXMLFile(bw);
+                bw.close();
+            }
+        }
+    }
+
+    private static String readValue(BufferedReader br) throws Exception {
+        StringBuilder valueBuilder = new StringBuilder("");
+        String line;
+        while (true) {
+            line = br.readLine();
+            Matcher valueMatcher = PO_VALUE_PATTERN.matcher(line);
+            if (valueMatcher.matches()) {
+                valueBuilder.append(valueMatcher.group(1));
+                while (true) {
+                    line = br.readLine();
+                    if (line == null) {
+                        break;
+                    }
+                    Matcher startValueMatcher = START_PO_VALUE_PATTERN.matcher(line);
+                    if (startValueMatcher.matches()) {
+                        valueBuilder.append(startValueMatcher.group(1));
+                        continue;
+                    }
+                    Matcher emptyMatcher = PO_EMPTY_LINE_PATTERN.matcher(line);
+                    if (emptyMatcher.matches()) {
                         break;
                     }
                 }
-            }
 
-            writeEndOfStringsXMLFile(bw);
+                return valueBuilder.toString();
+            }
+        }
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private static BufferedWriter getBufferedWriter(String path, String valuesDirPostfix) throws Exception {
+        File dir = new File(path).getParentFile().getParentFile();
+        String dirPath = dir.getAbsolutePath() + "/values-" + valuesDirPostfix + "/";
+        new File(dirPath).mkdirs();
+        String filepath = dirPath + "strings.xml";
+        return new BufferedWriter(new FileWriter(new File(filepath)));
+    }
+
+    private static String[] getCommentValuesArray(String fullComment) {
+        Matcher fullCommentMatcher = UTILITY_COMMENT_PATTERN.matcher(fullComment);
+        if (!fullCommentMatcher.matches()) {
+            throw new IllegalStateException();
+        }
+        return new String[]{
+                fullCommentMatcher.group(3),
+                fullCommentMatcher.group(6),
+                fullCommentMatcher.group(8),
+                String.valueOf(fullCommentMatcher.group(1) != null
+                        || fullCommentMatcher.group(4) != null
+                        || fullCommentMatcher.group(7) != null)
+        };
+    }
+
+    private static String getValuesDirNamePostfix(String filename) {
+        Matcher poFilenameMatcher = PO_FILENAME_PATTERN.matcher(filename);
+        if (poFilenameMatcher.matches()) {
+            return poFilenameMatcher.group(1);
+        } else {
+            throw new IllegalStateException();
         }
     }
 
     private static void writeStringTagString(BufferedWriter bw, String key, String value) throws Exception {
-        bw.write(TAB + OPEN_STRING_TAG + STRING_TAG_KEY_ATTRIBUTE + key + CLOSE_TAG + value + CLOSE_STRING_TAG + NEW_LINE);
+        bw.write(TAB + keyString(key) + value + CLOSE_STRING_TAG + NEW_LINE);
+    }
+
+    private static String keyString(String key) {
+        return OPEN_STRING_TAG + STRING_TAG_KEY_ATTRIBUTE + QUOTE + key + QUOTE + CLOSE_TAG;
     }
 
     private static void writeCommentString(BufferedWriter bw, String comment) throws Exception {
         bw.write(TAB + OPEN_XML_COMMENT_TAG + comment + CLOSE_XML_COMMENT_TAG + NEW_LINE);
     }
 
-    private static void writeStartOfStringsXMLFile(BufferedWriter bw) throws Exception {
-        bw.write(NEW_LINE + OPEN_RESOURCES_TAG + NEW_LINE);
+    private static void writeStartOfXMLFile(BufferedWriter bw) throws Exception {
+        bw.write(XML_SCHEME_START + NEW_LINE + OPEN_RESOURCES_TAG + NEW_LINE);
     }
 
     private static void writeEndOfStringsXMLFile(BufferedWriter bw) throws Exception {
-        bw.write(NEW_LINE + CLOSE_RESOURCES_TAG + NEW_LINE);
+        bw.write(NEW_LINE + CLOSE_RESOURCES_TAG);
     }
 
 }

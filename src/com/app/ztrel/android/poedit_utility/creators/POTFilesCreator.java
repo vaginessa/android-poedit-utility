@@ -1,82 +1,169 @@
 package com.app.ztrel.android.poedit_utility.creators;
 
+import com.sun.istack.internal.NotNull;
+
 import java.io.*;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import static com.app.ztrel.android.poedit_utility.Constants.*;
 
 /**
  * Utility class for creating POT-files: PO-templates for POEditor.
  */
 public final class POTFilesCreator {
 
-    private static final String QUOTE = "\"";
-    private static final String QUOTES = "\"\"";
-    private static final String NEW_LINE = "\n";
-    private static final String NEW_LINE_SLASH_ESCAPED = "\\n";
-    private static final String POT_COMMENT_LINE_START = "#: ";
-    private static final String POT_MESSAGE_ID_LINE_START = "msgid ";
-    private static final String POT_MESSAGE_STRING_LINE_START = "msgstr ";
-    private static final String UTILITY_COMMENT_KEY = "_comment_";
-    private static final String UTILITY_EMPTY_LINE_KEY = "_empty_";
-
-    private static final Pattern RESOURCES_TAG_PATTERN = Pattern.compile("^<resources>$");
-    private static final Pattern RESOURCES_END_TAG_PATTERN = Pattern.compile("^</resources>$");
-    private static final Pattern STRING_RESOURCE_PATTERN = Pattern.compile(".*<string name=(\".+\")>(.+)</string>.*");
-    private static final Pattern COMMENT_PATTERN = Pattern.compile(".*<!--(.+)-->.*");
-
     private POTFilesCreator() {
         // utility class.
     }
 
-    public static void createPOTFileFromStringsXML(final File stringsXMLFile) throws Exception {
-        File potTemplateFile = new File("template.pot");
-        try (BufferedReader br = new BufferedReader(new FileReader(stringsXMLFile));
-             BufferedWriter bw = new BufferedWriter(new FileWriter(potTemplateFile))) {
-
+    /**
+     * Main method for creating single POT-template for further work.
+     *
+     * @param startFile - file for start. If it is .xml-file - it will be parsed, if it is directory - we will try
+     *                  to search any .xml files in it.
+     * @throws Exception
+     */
+    public static void potFileCreating(final File startFile) throws Exception {
+        File potTemplateFile = new File("android_strings_template.pot");
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(potTemplateFile))) {
             writeStartOfPOTTemplate(bw);
+            handleFile(bw, startFile);
+        }
+    }
 
+    private static void handleFile(@NotNull BufferedWriter bw, @NotNull final File startFile) throws Exception {
+        if (startFile.isDirectory()) {
+            File[] directoryFiles = startFile.listFiles();
+            if (directoryFiles != null && directoryFiles.length != 0) {
+                for (File directoryFile : directoryFiles) {
+                    handleFile(bw, directoryFile);
+                }
+            }
+        } else {
+            String parentName = startFile.getParentFile().getName();
+            if (startFile.getName().endsWith(".xml") && parentName.equals("values")) {
+                handleXMLFile(bw, startFile);
+            }
+        }
+    }
+
+    private static void handleXMLFile(@NotNull BufferedWriter bw, @NotNull File xmlFile) throws Exception {
+        try (BufferedReader br = new BufferedReader(new FileReader(xmlFile))) {
             String line;
+            boolean wasResourcesTag = false;
+            boolean makePathComment = false;
+            int emptyLinesCounter = 0;
+            StringBuilder startCommentBuilder = new StringBuilder("");
             while ((line = br.readLine()) != null) {
-                Matcher stringResourceMatcher = STRING_RESOURCE_PATTERN.matcher(line);
-                if (stringResourceMatcher.matches()) {
-                    writePOTFormatItem(bw, stringResourceMatcher);
+                if (!wasResourcesTag) {
+                    if (RESOURCES_TAG_PATTERN.matcher(line).matches()) {
+                        wasResourcesTag = true;
+                    }
+                    continue;
+                }
+
+                if (line.isEmpty()) {
+                    if (makePathComment) {
+                        ++emptyLinesCounter;
+                    }
+                    continue;
+                }
+
+                Matcher commentMatcher = COMMENT_PATTERN.matcher(line);
+                if (commentMatcher.matches()) {
+                    if (makePathComment) {
+                        writeCommentLine(bw, UTILITY_COMMENT_KEY, commentMatcher.group(1));
+                    } else {
+                        startCommentBuilder.append(commentMatcher.group(1));
+                    }
+                    continue;
+                }
+
+                Matcher translatableStringResourceMatcher = TRANSLATABLE_STRING_RESOURCE_PATTERN.matcher(line);
+                if (translatableStringResourceMatcher.matches()) {
+                    boolean needTranslate = translatableStringResourceMatcher.group(2).isEmpty() || translatableStringResourceMatcher.group(3).equals("true");
+                    if (needTranslate) {
+                        writeEmptyLines(bw, emptyLinesCounter);
+                        if (!makePathComment) {
+                            writeCommentLine(bw, UTILITY_PATH_KEY, xmlFile.getAbsolutePath());
+                        }
+                        if (startCommentBuilder != null) {
+                            writeCommentLine(bw, UTILITY_COMMENT_KEY, startCommentBuilder.toString());
+                        }
+
+                        emptyLinesCounter = 0;
+                        makePathComment = true;
+                        startCommentBuilder = null;
+
+                        String key = translatableStringResourceMatcher.group(1);
+                        String value = translatableStringResourceMatcher.group(4);
+                        writePOTFormatItem(bw, key, value);
+                    }
                 } else {
-                    Matcher commentMatcher = COMMENT_PATTERN.matcher(line);
-                    if (commentMatcher.matches()) {
-                        writeCommentString(bw, commentMatcher.group(1));
-                    } else if (!RESOURCES_TAG_PATTERN.matcher(line).matches() && !RESOURCES_END_TAG_PATTERN.matcher(line).matches()) {
-                        writeCommentString(bw, "");
+                    Matcher stringResourceMatcher = STRING_RESOURCE_PATTERN.matcher(line);
+                    if (stringResourceMatcher.matches()) {
+                        writeEmptyLines(bw, emptyLinesCounter);
+                        if (!makePathComment) {
+                            writeCommentLine(bw, UTILITY_PATH_KEY, xmlFile.getAbsolutePath());
+
+                        }
+                        if (startCommentBuilder != null) {
+                            writeCommentLine(bw, UTILITY_COMMENT_KEY, startCommentBuilder.toString());
+                        }
+
+                        emptyLinesCounter = 0;
+                        makePathComment = true;
+                        startCommentBuilder = null;
+
+                        String key = stringResourceMatcher.group(1);
+                        String value = stringResourceMatcher.group(2);
+                        writePOTFormatItem(bw, key, value);
+                    } else {
+                        return;
                     }
                 }
             }
         }
     }
 
-    private static void writePOTFormatItem(BufferedWriter bw, Matcher stringResourceMatcher) throws Exception {
-        String key = stringResourceMatcher.group(1);
-        String value = stringResourceMatcher.group(2);
-
-        bw.write(NEW_LINE +
-                POT_COMMENT_LINE_START + key + NEW_LINE +
-                POT_MESSAGE_ID_LINE_START + QUOTE + value + QUOTE + NEW_LINE +
-                POT_MESSAGE_STRING_LINE_START + QUOTES + NEW_LINE
-        );
-    }
-
-    private static void writeCommentString(BufferedWriter bw, String comment) throws Exception {
-        bw.write(NEW_LINE +
-                POT_COMMENT_LINE_START + (comment.isEmpty() ? UTILITY_EMPTY_LINE_KEY : UTILITY_COMMENT_KEY + comment)
-        );
-    }
-
     private static void writeStartOfPOTTemplate(BufferedWriter bw) throws Exception {
-        bw.write(
-                POT_MESSAGE_ID_LINE_START + QUOTES + NEW_LINE +
+        bw.write(POT_MESSAGE_ID_LINE_START + QUOTES + NEW_LINE +
                         POT_MESSAGE_STRING_LINE_START + QUOTES + NEW_LINE +
                         QUOTE + "Content-Type: text/plain; charset=UTF-8" + NEW_LINE_SLASH_ESCAPED + QUOTE + NEW_LINE +
                         QUOTE + "Content-Transfer-Encoding: 8bit" + NEW_LINE_SLASH_ESCAPED + QUOTE + NEW_LINE +
                         QUOTE + "Project-Id-Version: " + NEW_LINE_SLASH_ESCAPED + QUOTE + NEW_LINE
         );
+    }
+
+    private static void writeCommentLine(@NotNull BufferedWriter bw, String utilityKey, String comment) throws Exception {
+        String delimiterString = "";
+        switch (utilityKey) {
+            case UTILITY_PATH_KEY:
+                delimiterString = "*";
+                break;
+
+            case UTILITY_COMMENT_KEY:
+                delimiterString = "\"";
+                break;
+        }
+        bw.write(NEW_LINE + POT_COMMENT_LINE_START + utilityKey + delimiterString + comment + delimiterString);
+    }
+
+    private static void writePOTFormatItem(@NotNull BufferedWriter bw, String key, String value) throws Exception {
+        bw.write(NEW_LINE +
+                        POT_COMMENT_LINE_START + key + NEW_LINE +
+                        POT_MESSAGE_ID_LINE_START + QUOTE + value + QUOTE + NEW_LINE +
+                        POT_MESSAGE_STRING_LINE_START + QUOTES + NEW_LINE
+        );
+    }
+
+    private static void writeEmptyLines(BufferedWriter bw, int emptyLinesCounter) throws Exception {
+        if (emptyLinesCounter == 0) {
+            return;
+        }
+        for (int i = 0; i < emptyLinesCounter; ++i) {
+            writeCommentLine(bw, UTILITY_EMPTY_LINE_KEY, "");
+        }
     }
 
 }
