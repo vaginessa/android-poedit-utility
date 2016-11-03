@@ -32,8 +32,7 @@ public final class Constants {
     public static final String CLOSE_XML_COMMENT_TAG = "-->";
 
     public static final Pattern RESOURCES_TAG_PATTERN = Pattern.compile("^<resources>$");
-    public static final Pattern TRANSLATABLE_STRING_RESOURCE_PATTERN = Pattern.compile(".*<string name=(\".+\") (translatable=\"(.+)\")>(.+)</string>.*");
-    public static final Pattern STRING_RESOURCE_PATTERN = Pattern.compile(".*<string name=(\".+\")>(.+)</string>.*");
+    public static final Pattern TRANSLATABLE_STRING_RESOURCE_PATTERN = Pattern.compile(".*<string name=(\".+\")([ ]+translatable=\"(.+)\")?>(.+)</string>.*");
     public static final Pattern COMMENT_PATTERN = Pattern.compile(".*<!--(.+)-->.*");
 
     public static final Pattern PO_VALUE_PATTERN = Pattern.compile("msgstr \"(.*)\"");

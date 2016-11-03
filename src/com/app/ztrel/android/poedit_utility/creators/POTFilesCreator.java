@@ -81,7 +81,8 @@ public final class POTFilesCreator {
 
                 Matcher translatableStringResourceMatcher = TRANSLATABLE_STRING_RESOURCE_PATTERN.matcher(line);
                 if (translatableStringResourceMatcher.matches()) {
-                    boolean needTranslate = translatableStringResourceMatcher.group(2).isEmpty() || translatableStringResourceMatcher.group(3).equals("true");
+                    boolean needTranslate = translatableStringResourceMatcher.group(2) == null ||
+                            translatableStringResourceMatcher.group(3).equals("true");
                     if (needTranslate) {
                         writeEmptyLines(bw, emptyLinesCounter);
                         if (!makePathComment) {
@@ -99,28 +100,6 @@ public final class POTFilesCreator {
                         String value = translatableStringResourceMatcher.group(4);
                         writePOTFormatItem(bw, key, value);
                     }
-                } else {
-                    Matcher stringResourceMatcher = STRING_RESOURCE_PATTERN.matcher(line);
-                    if (stringResourceMatcher.matches()) {
-                        writeEmptyLines(bw, emptyLinesCounter);
-                        if (!makePathComment) {
-                            writeCommentLine(bw, UTILITY_PATH_KEY, xmlFile.getAbsolutePath());
-
-                        }
-                        if (startCommentBuilder != null) {
-                            writeCommentLine(bw, UTILITY_COMMENT_KEY, startCommentBuilder.toString());
-                        }
-
-                        emptyLinesCounter = 0;
-                        makePathComment = true;
-                        startCommentBuilder = null;
-
-                        String key = stringResourceMatcher.group(1);
-                        String value = stringResourceMatcher.group(2);
-                        writePOTFormatItem(bw, key, value);
-                    } else {
-                        return;
-                    }
                 }
             }
         }
@@ -128,10 +107,10 @@ public final class POTFilesCreator {
 
     private static void writeStartOfPOTTemplate(BufferedWriter bw) throws Exception {
         bw.write(POT_MESSAGE_ID_LINE_START + QUOTES + NEW_LINE +
-                        POT_MESSAGE_STRING_LINE_START + QUOTES + NEW_LINE +
-                        QUOTE + "Content-Type: text/plain; charset=UTF-8" + NEW_LINE_SLASH_ESCAPED + QUOTE + NEW_LINE +
-                        QUOTE + "Content-Transfer-Encoding: 8bit" + NEW_LINE_SLASH_ESCAPED + QUOTE + NEW_LINE +
-                        QUOTE + "Project-Id-Version: " + NEW_LINE_SLASH_ESCAPED + QUOTE + NEW_LINE
+                POT_MESSAGE_STRING_LINE_START + QUOTES + NEW_LINE +
+                QUOTE + "Content-Type: text/plain; charset=UTF-8" + NEW_LINE_SLASH_ESCAPED + QUOTE + NEW_LINE +
+                QUOTE + "Content-Transfer-Encoding: 8bit" + NEW_LINE_SLASH_ESCAPED + QUOTE + NEW_LINE +
+                QUOTE + "Project-Id-Version: " + NEW_LINE_SLASH_ESCAPED + QUOTE + NEW_LINE
         );
     }
 
@@ -151,9 +130,9 @@ public final class POTFilesCreator {
 
     private static void writePOTFormatItem(@NotNull BufferedWriter bw, String key, String value) throws Exception {
         bw.write(NEW_LINE +
-                        POT_COMMENT_LINE_START + key + NEW_LINE +
-                        POT_MESSAGE_ID_LINE_START + QUOTE + value + QUOTE + NEW_LINE +
-                        POT_MESSAGE_STRING_LINE_START + QUOTES + NEW_LINE
+                POT_COMMENT_LINE_START + key + NEW_LINE +
+                POT_MESSAGE_ID_LINE_START + QUOTE + value + QUOTE + NEW_LINE +
+                POT_MESSAGE_STRING_LINE_START + QUOTES + NEW_LINE
         );
     }
 
