@@ -3,6 +3,8 @@ package com.app.ztrel.android.poedit_utility.creators;
 import com.sun.istack.internal.NotNull;
 
 import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.regex.Matcher;
 
 import static com.app.ztrel.android.poedit_utility.Constants.*;
@@ -11,6 +13,9 @@ import static com.app.ztrel.android.poedit_utility.Constants.*;
  * Utility class for creating POT-files: PO-templates for POEditor.
  */
 public final class POTFilesCreator {
+
+    private static Path basePath;
+    private static int handledStringsFilesCount;
 
     private POTFilesCreator() {
         // utility class.
@@ -24,15 +29,22 @@ public final class POTFilesCreator {
      * @throws Exception
      */
     public static void potFileCreating(final File startFile) throws Exception {
+        long startTime = System.currentTimeMillis();
+        basePath = null;
+        handledStringsFilesCount = 0;
+
         File potTemplateFile = new File("android_strings_template.pot");
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(potTemplateFile))) {
-            writeStartOfPOTTemplate(bw);
             handleFile(bw, startFile);
         }
+        writeTotalLog(startTime, handledStringsFilesCount);
     }
 
     private static void handleFile(@NotNull BufferedWriter bw, @NotNull final File startFile) throws Exception {
         if (startFile.isDirectory()) {
+            if (basePath == null) {
+                basePath = Paths.get(startFile.getAbsolutePath());
+            }
             File[] directoryFiles = startFile.listFiles();
             if (directoryFiles != null && directoryFiles.length != 0) {
                 for (File directoryFile : directoryFiles) {
@@ -82,15 +94,9 @@ public final class POTFilesCreator {
                 Matcher translatableStringResourceMatcher = TRANSLATABLE_STRING_RESOURCE_PATTERN.matcher(line);
                 if (translatableStringResourceMatcher.matches()) {
                     boolean needTranslate = translatableStringResourceMatcher.group(2) == null ||
-                            translatableStringResourceMatcher.group(3).equals("true");
+                            translatableStringResourceMatcher.group(2).equals("true");
                     if (needTranslate) {
-                        writeEmptyLines(bw, emptyLinesCounter);
-                        if (!makePathComment) {
-                            writeCommentLine(bw, UTILITY_PATH_KEY, xmlFile.getAbsolutePath());
-                        }
-                        if (startCommentBuilder != null) {
-                            writeCommentLine(bw, UTILITY_COMMENT_KEY, startCommentBuilder.toString());
-                        }
+                        handleMatchedLine(bw, xmlFile, makePathComment, emptyLinesCounter, startCommentBuilder);
 
                         emptyLinesCounter = 0;
                         makePathComment = true;
@@ -100,8 +106,40 @@ public final class POTFilesCreator {
                         String value = translatableStringResourceMatcher.group(4);
                         writePOTFormatItem(bw, key, value);
                     }
+                } else {
+                    Matcher stringResourceMatcher = STRING_RESOURCE_PATTERN.matcher(line);
+                    if (stringResourceMatcher.matches()) {
+                        handleMatchedLine(bw, xmlFile, makePathComment, emptyLinesCounter, startCommentBuilder);
+
+                        emptyLinesCounter = 0;
+                        makePathComment = true;
+                        startCommentBuilder = null;
+
+                        String key = stringResourceMatcher.group(1);
+                        String value = stringResourceMatcher.group(2);
+                        writePOTFormatItem(bw, key, value);
+                    } else {
+                        return;
+                    }
                 }
             }
+        }
+    }
+
+    private static void handleMatchedLine(BufferedWriter bw, File xmlFile,
+                                          boolean makePathComment, int emptyLinesCounter,
+                                          StringBuilder startCommentBuilder) throws Exception {
+        writeEmptyLines(bw, emptyLinesCounter);
+        if (!makePathComment) {
+            ++handledStringsFilesCount;
+            if (handledStringsFilesCount == 1) {
+                writeStartOfPOTTemplate(bw);
+            }
+            Path pathRelative = basePath.relativize(Paths.get(xmlFile.getAbsolutePath()));
+            writeCommentLine(bw, UTILITY_PATH_KEY, pathRelative.toString());
+        }
+        if (startCommentBuilder != null && !startCommentBuilder.toString().isEmpty()) {
+            writeCommentLine(bw, UTILITY_COMMENT_KEY, startCommentBuilder.toString());
         }
     }
 
@@ -143,6 +181,12 @@ public final class POTFilesCreator {
         for (int i = 0; i < emptyLinesCounter; ++i) {
             writeCommentLine(bw, UTILITY_EMPTY_LINE_KEY, "");
         }
+    }
+
+    private static void writeTotalLog(long startTime, int handledStringsFilesCount) {
+        System.out.println("POT file creation successfully complete.\n " +
+                "\tCount of handled files with strings values: " + handledStringsFilesCount + ". " +
+                "\tTotal time: " + (System.currentTimeMillis() - startTime) + " ms.");
     }
 
 }

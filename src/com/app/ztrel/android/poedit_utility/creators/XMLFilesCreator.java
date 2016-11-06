@@ -12,16 +12,26 @@ import static com.app.ztrel.android.poedit_utility.Constants.*;
  */
 public final class XMLFilesCreator {
 
+    private static File baseFile;
+    private static int createdFilesCount;
+
     private XMLFilesCreator() {
         // utility class.
     }
 
     public static void createXMLFiles(@NotNull final File startFile) throws Exception {
+        long startTime = System.currentTimeMillis();
+        createdFilesCount = 0;
+
         handleFile(startFile);
+        writeTotalLog(startTime, createdFilesCount);
     }
 
     private static void handleFile(@NotNull final File startFile) throws Exception {
         if (startFile.isDirectory()) {
+            if (baseFile == null) {
+                baseFile = startFile;
+            }
             File[] directoryFiles = startFile.listFiles();
             if (directoryFiles != null && directoryFiles.length != 0) {
                 for (File directoryFile : directoryFiles) {
@@ -35,6 +45,7 @@ public final class XMLFilesCreator {
         }
     }
 
+    @SuppressWarnings("ThrowFromFinallyBlock")
     private static void handlePOFile(File poFile) throws Exception {
         BufferedWriter bw = null;
         try (BufferedReader br = new BufferedReader(new FileReader(poFile))) {
@@ -57,27 +68,18 @@ public final class XMLFilesCreator {
                         if (bw == null) {
                             throw new IllegalStateException();
                         }
-                        if ("true".equals(valuesCommentArray[3])) {
-                            bw.newLine();
-                        }
-                        if (valuesCommentArray[1] != null) {
-                            writeCommentString(bw, valuesCommentArray[1]);
-                        }
-
-                        String key = valuesCommentArray[2];
-                        String value = readValue(br);
-
-                        writeStringTagString(bw, key, value);
+                        handleValuesCommentArray(br, bw, valuesCommentArray);
                     } else {
                         if (bw != null) {
                             writeEndOfStringsXMLFile(bw);
                             bw.close();
                             bw = null;
+                            ++createdFilesCount;
                         }
                         bw = getBufferedWriter(valuesCommentArray[0], getValuesDirNamePostfix(poFile.getName()));
                         writeStartOfXMLFile(bw);
+                        handleValuesCommentArray(br, bw, valuesCommentArray);
                     }
-
 
                     commentBuilder.setLength(0);
                 }
@@ -86,8 +88,25 @@ public final class XMLFilesCreator {
             if (bw != null) {
                 writeEndOfStringsXMLFile(bw);
                 bw.close();
+                ++createdFilesCount;
             }
         }
+    }
+
+    private static void handleValuesCommentArray(BufferedReader br,
+                                                 BufferedWriter bw,
+                                                 String[] valuesCommentArray) throws Exception {
+        if ("true".equals(valuesCommentArray[3])) {
+            bw.newLine();
+        }
+        if (valuesCommentArray[1] != null) {
+            writeCommentString(bw, valuesCommentArray[1]);
+        }
+
+        String key = valuesCommentArray[2];
+        String value = readValue(br);
+
+        writeStringTagString(bw, key, value);
     }
 
     private static String readValue(BufferedReader br) throws Exception {
@@ -121,11 +140,13 @@ public final class XMLFilesCreator {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     private static BufferedWriter getBufferedWriter(String path, String valuesDirPostfix) throws Exception {
-        File dir = new File(path).getParentFile().getParentFile();
-        String dirPath = dir.getAbsolutePath() + "/values-" + valuesDirPostfix + "/";
+        File xmlFile = new File(baseFile, path);
+        File dir = xmlFile.getParentFile().getParentFile();
+        String dirPath = dir.getAbsolutePath() + "/" + "values-" + valuesDirPostfix + "/";
         new File(dirPath).mkdirs();
-        String filepath = dirPath + "strings.xml";
-        return new BufferedWriter(new FileWriter(new File(filepath)));
+        String filepath = dirPath + xmlFile.getName();
+        File myFile = new File(filepath);
+        return new BufferedWriter(new FileWriter(myFile));
     }
 
     private static String[] getCommentValuesArray(String fullComment) {
@@ -170,6 +191,12 @@ public final class XMLFilesCreator {
 
     private static void writeEndOfStringsXMLFile(BufferedWriter bw) throws Exception {
         bw.write(NEW_LINE + CLOSE_RESOURCES_TAG);
+    }
+
+    private static void writeTotalLog(long startTime, int createdFilesCount) {
+        System.out.println("XML files creation successfully complete.\n " +
+                "\tCount of created files with strings values: " + createdFilesCount + ". " +
+                "\tTotal time: " + (System.currentTimeMillis() - startTime) + " ms.");
     }
 
 }
