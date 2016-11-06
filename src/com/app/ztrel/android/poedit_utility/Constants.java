@@ -26,7 +26,7 @@ public final class Constants {
     public static final String OPEN_RESOURCES_TAG = "<resources>";
     public static final String CLOSE_RESOURCES_TAG = "</resources>";
     public static final String OPEN_STRING_TAG = "<string ";
-    public static final String STRING_TAG_KEY_ATTRIBUTE = "key=";
+    public static final String STRING_TAG_KEY_ATTRIBUTE = "name=";
     public static final String CLOSE_STRING_TAG = "</string>";
     public static final String OPEN_XML_COMMENT_TAG = "<!--";
     public static final String CLOSE_XML_COMMENT_TAG = "-->";
