@@ -28,12 +28,12 @@ public final class POTFilesCreator {
      *                  to search any .xml files in it.
      * @throws Exception
      */
-    public static void potFileCreating(final File startFile) throws Exception {
+    public static void potFileCreating(final File jarDir, final File startFile) throws Exception {
         long startTime = System.currentTimeMillis();
         basePath = null;
         handledStringsFilesCount = 0;
 
-        File potTemplateFile = new File("android_strings_template.pot");
+        File potTemplateFile = new File(jarDir, "android_strings_template.pot");
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(potTemplateFile))) {
             handleFile(bw, startFile);
         }
