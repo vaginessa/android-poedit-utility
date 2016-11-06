@@ -12,35 +12,28 @@ import static com.app.ztrel.android.poedit_utility.Constants.*;
  */
 public final class XMLFilesCreator {
 
-    private static File baseFile;
+    private static File baseDir;
     private static int createdFilesCount;
 
     private XMLFilesCreator() {
         // utility class.
     }
 
-    public static void createXMLFiles(@NotNull final File startFile) throws Exception {
+    public static void createXMLFiles(@NotNull final File jarDir, @NotNull final File appDir) throws Exception {
         long startTime = System.currentTimeMillis();
         createdFilesCount = 0;
-
-        handleFile(startFile);
+        baseDir = appDir;
+        handleAppDir(jarDir);
         writeTotalLog(startTime, createdFilesCount);
     }
 
-    private static void handleFile(@NotNull final File startFile) throws Exception {
-        if (startFile.isDirectory()) {
-            if (baseFile == null) {
-                baseFile = startFile;
-            }
-            File[] directoryFiles = startFile.listFiles();
-            if (directoryFiles != null && directoryFiles.length != 0) {
-                for (File directoryFile : directoryFiles) {
-                    handleFile(directoryFile);
+    private static void handleAppDir(@NotNull final File jarDir) throws Exception {
+        File[] jarDirectoryFiles = jarDir.listFiles();
+        if (jarDirectoryFiles != null && jarDirectoryFiles.length != 0) {
+            for (File file : jarDirectoryFiles) {
+                if (file.getName().endsWith(".po")) {
+                    handlePOFile(file);
                 }
-            }
-        } else {
-            if (startFile.getName().endsWith(".po")) {
-                handlePOFile(startFile);
             }
         }
     }
@@ -140,7 +133,7 @@ public final class XMLFilesCreator {
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     private static BufferedWriter getBufferedWriter(String path, String valuesDirPostfix) throws Exception {
-        File xmlFile = new File(baseFile, path);
+        File xmlFile = new File(baseDir, path);
         File dir = xmlFile.getParentFile().getParentFile();
         String dirPath = dir.getAbsolutePath() + "/" + "values-" + valuesDirPostfix + "/";
         new File(dirPath).mkdirs();

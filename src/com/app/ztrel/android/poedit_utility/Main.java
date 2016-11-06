@@ -9,30 +9,30 @@ import java.net.URLDecoder;
 public class Main {
 
     /**
-     * Utility automatically goes through all directories, creates single android_strings_template.pot and
-     * creates corresponding strings.xml from .po files.
+     * Utility automatically goes through all directories, creates (or updates) single android_strings_template.pot in -jar file directory
+     * and creates corresponding strings.xml from .po files, which exists in -jar file directory.
      *
      * @param args - utility need only one arg - path to app folder.
      */
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
-            throw new RuntimeException("Error! You need to provide path to file or directory.");
+            throw new RuntimeException("Error! You need to provide path to app directory.");
         }
 
         String filepath = args[0];
-        File startFile = new File(filepath);
-        if (!startFile.exists()) {
-            throw new RuntimeException("Error! You need to provide path to existing file or directory.");
+        File appDir = new File(filepath);
+        if (!appDir.exists()) {
+            throw new RuntimeException("Error! You need to provide path to existing app directory.");
         }
 
-        POTFilesCreator.potFileCreating(getPathToJARDirectory(), startFile);
-        XMLFilesCreator.createXMLFiles(startFile);
+        File jarDir = getJarDir();
+        POTFilesCreator.potFileCreating(jarDir, appDir);
+        XMLFilesCreator.createXMLFiles(jarDir, appDir);
     }
 
-    private static File getPathToJARDirectory() throws Exception {
+    private static File getJarDir() throws Exception {
         String path = Main.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        File dir = new File(URLDecoder.decode(path, "UTF-8"));
-        return dir.getParentFile();
+        return new File(URLDecoder.decode(path, "UTF-8")).getParentFile();
     }
 
 }

@@ -24,18 +24,17 @@ public final class POTFilesCreator {
     /**
      * Main method for creating single POT-template for further work.
      *
-     * @param startFile - file for start. If it is .xml-file - it will be parsed, if it is directory - we will try
-     *                  to search any .xml files in it.
+     * @param appDir - app directory for start. We will try to search any .xml files in it.
      * @throws Exception
      */
-    public static void potFileCreating(final File jarDir, final File startFile) throws Exception {
+    public static void potFileCreating(@NotNull final File jarDir, @NotNull final File appDir) throws Exception {
         long startTime = System.currentTimeMillis();
         basePath = null;
         handledStringsFilesCount = 0;
 
         File potTemplateFile = new File(jarDir, "android_strings_template.pot");
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(potTemplateFile))) {
-            handleFile(bw, startFile);
+            handleFile(bw, appDir);
         }
         writeTotalLog(startTime, handledStringsFilesCount);
     }
