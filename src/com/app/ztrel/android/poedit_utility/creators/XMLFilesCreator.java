@@ -167,7 +167,9 @@ public final class XMLFilesCreator {
     }
 
     private static void writeStringTagString(BufferedWriter bw, String key, String value) throws Exception {
-        bw.write(TAB + keyString(key) + value + CLOSE_STRING_TAG + NEW_LINE);
+        bw.write(SPACES_TAB + keyString(key) +
+                value.replaceAll("\\\\'", "\\'").replace("\\\\\\\"", "\\\"") +
+                CLOSE_STRING_TAG + NEW_LINE);
     }
 
     private static String keyString(String key) {
@@ -175,7 +177,7 @@ public final class XMLFilesCreator {
     }
 
     private static void writeCommentString(BufferedWriter bw, String comment) throws Exception {
-        bw.write(TAB + OPEN_XML_COMMENT_TAG + comment + CLOSE_XML_COMMENT_TAG + NEW_LINE);
+        bw.write(SPACES_TAB + OPEN_XML_COMMENT_TAG + comment + CLOSE_XML_COMMENT_TAG + NEW_LINE);
     }
 
     private static void writeStartOfXMLFile(BufferedWriter bw) throws Exception {

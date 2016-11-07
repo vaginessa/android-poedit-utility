@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
  */
 public final class Constants {
 
-    public static final String TAB = "\t";
+    public static final String SPACES_TAB = "    ";
     public static final String CLOSE_TAG = ">";
     public static final String QUOTE = "\"";
     public static final String QUOTES = "\"\"";
